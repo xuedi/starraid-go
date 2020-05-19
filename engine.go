@@ -2,15 +2,20 @@ package main
 
 import (
 	"github.com/veandco/go-sdl2/sdl"
+	"github.com/veandco/go-sdl2/ttf"
 	"time"
 )
 
 type engine struct {
-	resX, resY int32
-	posX, posY int32
+	resX, resY          int32
+	posX, posY          int32
 	fullscreen, running bool
-	window *sdl.Window
-	renderer *sdl.Renderer
+	window              *sdl.Window
+	renderer            *sdl.Renderer
+
+	// to put into assets struct
+	font *ttf.Font
+	dbgColor sdl.Color
 }
 
 func createEngine(cfgPara config) engine {
@@ -34,6 +39,11 @@ func (game *engine) init() {
 		panic(err)
 	}
 
+	err = ttf.Init()
+	if err != nil {
+		panic(err)
+	}
+
 	game.window, err = sdl.CreateWindow("test", game.posX, game.posY, game.resX, game.resY, sdl.WINDOW_SHOWN)
 	if err != nil {
 		panic(err)
@@ -52,6 +62,12 @@ func (game *engine) init() {
 	}
 
 	sdl.ShowCursor(0)
+
+	// to put into assets struct
+	game.font, err = ttf.OpenFont("assets/times.ttf", 24)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func (game *engine) run() {
@@ -70,13 +86,29 @@ func (game *engine) render() {
 	game.renderer.FillRect(&sdl.Rect{0, 0, int32(100), int32(100)})
 
 
-	TTF_Font* Sans = TTF_OpenFont("Sans.ttf", 24); //this opens a font style and sets a size
 
-	SDL_Color White = {255, 255, 255};  // this is the color in rgb format, maxing out all would give you the color white, and it will be your text's color
 
-	SDL_Surface* surfaceMessage = TTF_RenderText_Solid(Sans, "put your text here", White); // as TTF_RenderText_Solid could only be used on SDL_Surface then you have to create the surface first
+	// ------------------------------------------------------
 
-	SDL_Texture* Message = SDL_CreateTextureFromSurface(renderer, surfaceMessage); //now you can convert it into a texture
+	var err error
+	var shadedSurface *sdl.Surface
+	shadedSurface, err = game.font.RenderUTF8Shaded("Shaded Text", sdl.Color{0, 255, 0, 255}, sdl.Color{255, 0, 255, 255})
+	if err != nil {
+		panic(err)
+	}
+
+	var shadedTexture  *sdl.Texture
+	shadedTexture, err = game.renderer.CreateTextureFromSurface(shadedSurface)
+	if err != nil {
+		panic(err)
+	}
+
+	shadedSurface.Free()
+	game.renderer.Copy(shadedTexture, nil, &sdl.Rect{300, 20, 244, 53})
+
+	// ------------------------------------------------------
+
+
 
 
 	game.renderer.Present()
@@ -96,7 +128,7 @@ func (game *engine) handleEvents() {
 }
 
 func (game *engine) handleKeyboard(e *sdl.KeyboardEvent) {
-	if(e.Type != sdl.KEYUP) {
+	if e.Type != sdl.KEYUP {
 		return
 	}
 
