@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/veandco/go-sdl2/sdl"
 	"github.com/veandco/go-sdl2/ttf"
 	"time"
@@ -12,6 +13,9 @@ type engine struct {
 	fullscreen, running bool
 	window              *sdl.Window
 	renderer            *sdl.Renderer
+
+	fpsLast int
+	fps int
 
 	// to put into assets struct
 	font *ttf.Font
@@ -64,18 +68,19 @@ func (game *engine) init() {
 	sdl.ShowCursor(0)
 
 	// to put into assets struct
-	game.font, err = ttf.OpenFont("assets/times.ttf", 24)
+	game.font, err = ttf.OpenFont("assets/times.ttf", 20)
 	if err != nil {
 		panic(err)
 	}
 }
 
 func (game *engine) run() {
+	game.registerTimers()
+	game.init()
 	for game.running {
 		game.handleEvents()
 		game.render()
-
-		time.Sleep(10 * time.Millisecond)
+		game.sleep()
 	}
 }
 
@@ -89,23 +94,22 @@ func (game *engine) render() {
 
 
 	// ------------------------------------------------------
-
 	var err error
-	var shadedSurface *sdl.Surface
-	shadedSurface, err = game.font.RenderUTF8Shaded("Shaded Text", sdl.Color{0, 255, 0, 255}, sdl.Color{255, 0, 255, 255})
+	var surface *sdl.Surface
+	surface, err = game.font.RenderUTF8Blended(fmt.Sprintf("FPS: %d", game.fpsLast), sdl.Color{R: 255, G: 0, B: 0, A: 255})
 	if err != nil {
 		panic(err)
 	}
 
-	var shadedTexture  *sdl.Texture
-	shadedTexture, err = game.renderer.CreateTextureFromSurface(shadedSurface)
+	var texture *sdl.Texture
+	texture, err = game.renderer.CreateTextureFromSurface(surface)
 	if err != nil {
 		panic(err)
 	}
 
-	shadedSurface.Free()
-	game.renderer.Copy(shadedTexture, nil, &sdl.Rect{300, 20, 244, 53})
-
+	//game.renderer.Copy(texture, nil, &sdl.Rect{300, 20, 244, 53})
+	game.renderer.Copy(texture, nil, &sdl.Rect{300, 20, surface.ClipRect.W, surface.ClipRect.H})
+	surface.Free()
 	// ------------------------------------------------------
 
 
@@ -136,4 +140,24 @@ func (game *engine) handleKeyboard(e *sdl.KeyboardEvent) {
 	case sdl.K_ESCAPE:
 		game.running = false
 	}
+}
+
+func (game *engine) registerTimers() {
+	game.fps = 0
+	game.fpsLast = 0
+	go func() {
+		for range time.Tick(1 * time.Second) {
+			game.executeTimer()
+		}
+	}()
+}
+
+func (game *engine) executeTimer() {
+	game.fpsLast = game.fps
+	game.fps = 0
+}
+
+func (game *engine) sleep() {
+	time.Sleep(10 * time.Millisecond) // dynamically adjust
+	game.fps++
 }
